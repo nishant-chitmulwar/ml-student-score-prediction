@@ -1,111 +1,821 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScoreScope — Predict</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+ 
+    :root {
+      --ink:   #0c0c14;
+      --deep:  #12121e;
+      --panel: #1a1a2e;
+      --card:  #1e1e30;
+      --gold:  #c9a84c;
+      --gold2: #e8c76a;
+      --cream: #f0ead6;
+      --muted: #8a8070;
+      --err:   #d97060;
+      --ok:    #6abf8a;
+      --line:  rgba(201,168,76,.18);
+    }
+ 
+    html { scroll-behavior: smooth; }
+ 
+    body {
+      background: var(--ink);
+      color: var(--cream);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+ 
+    /* ── Grid bg ── */
+    .grid-bg {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 52px 52px;
+      pointer-events: none;
+    }
+    .grid-bg::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 100% 100% at 50% 0%, transparent 30%, var(--ink) 90%);
+    }
+ 
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.2rem 3rem;
+      background: rgba(12,12,20,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem; font-weight: 600;
+      color: var(--gold); text-decoration: none; letter-spacing: .06em;
+    }
+    .logo span { font-style: italic; font-weight: 300; color: var(--cream); }
+    .nav-back {
+      font-size: .75rem; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--muted); text-decoration: none;
+      transition: color .3s;
+    }
+    .nav-back:hover { color: var(--gold); }
+ 
+    /* ── Page wrapper ── */
+    .page {
+      position: relative; z-index: 1;
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 4rem 2rem 6rem;
+    }
+ 
+    /* ── Header ── */
+    .page-header { text-align: center; margin-bottom: 3.5rem; }
+    .page-eyebrow {
+      font-size: .7rem; letter-spacing: .32em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 1rem;
+      animation: fadeUp .6s .1s both;
+    }
+    .page-header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.2rem, 6vw, 3.8rem);
+      font-weight: 300; line-height: 1.1;
+      animation: fadeUp .7s .25s both;
+    }
+    .page-header h1 em { font-style: italic; color: var(--gold); }
+    .page-header p {
+      margin-top: 1rem; color: var(--muted);
+      font-size: .95rem; line-height: 1.7;
+      animation: fadeUp .7s .4s both;
+    }
+ 
+    /* ── Steps indicator ── */
+    .steps-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; margin-bottom: 3rem;
+      animation: fadeUp .7s .5s both;
+    }
+    .step-dot {
+      display: flex; flex-direction: column; align-items: center; gap: .4rem;
+      position: relative;
+    }
+    .step-dot .dot {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1.5px solid var(--line);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem; color: var(--muted);
+      background: var(--deep);
+      transition: border-color .4s, color .4s, background .4s;
+    }
+    .step-dot.active .dot { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,.12); }
+    .step-dot.done .dot   { border-color: var(--ok);   color: var(--ok);   background: rgba(106,191,138,.12); }
+    .step-dot .label {
+      font-size: .65rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--muted); transition: color .4s; white-space: nowrap;
+    }
+    .step-dot.active .label { color: var(--gold); }
+    .step-dot.done .label   { color: var(--ok); }
+    .step-line {
+      width: 80px; height: 1px;
+      background: var(--line);
+      margin: 0 .4rem;
+      margin-bottom: 1.4rem;
+      position: relative; overflow: hidden;
+    }
+    .step-line::after {
+      content: '';
+      position: absolute; top: 0; left: 0; height: 100%;
+      width: 0%;
+      background: var(--gold);
+      transition: width .6s ease;
+    }
+    .step-line.done::after { width: 100%; }
+ 
+    /* ── Form card ── */
+    .form-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      overflow: hidden;
+      animation: fadeUp .7s .6s both;
+    }
+    .card-top {
+      padding: 2rem 2.5rem 1.4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .card-top h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem; font-weight: 400;
+    }
+    .card-top p { font-size: .85rem; color: var(--muted); margin-top: .3rem; }
+ 
+    /* ── Step panels ── */
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+ 
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.4rem;
+      padding: 2rem 2.5rem;
+    }
+    .fields-grid.single { grid-template-columns: 1fr; }
+    .field-group { display: flex; flex-direction: column; gap: .5rem; }
+    .field-group.full { grid-column: 1 / -1; }
+ 
+    label {
+      font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--muted);
+    }
+ 
+    select, input[type="number"] {
+      width: 100%;
+      background: var(--deep);
+      border: 1px solid rgba(201,168,76,.15);
+      color: var(--cream);
+      font-family: 'Outfit', sans-serif;
+      font-size: .95rem; font-weight: 300;
+      padding: .85rem 1rem;
+      border-radius: 2px;
+      outline: none;
+      transition: border-color .3s, background .3s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    select { cursor: pointer; }
+    select:focus, input[type="number"]:focus {
+      border-color: var(--gold);
+      background: rgba(201,168,76,.04);
+    }
+    select option { background: var(--panel); }
+ 
+    /* Radio pill group */
+    .radio-group { display: flex; gap: .6rem; }
+    .radio-pill { flex: 1; }
+    .radio-pill input { display: none; }
+    .radio-pill label {
+      display: flex; align-items: center; justify-content: center;
+      padding: .85rem .5rem;
+      border: 1px solid rgba(201,168,76,.15);
+      border-radius: 2px;
+      cursor: pointer; font-size: .85rem; letter-spacing: .06em;
+      text-transform: none;
+      color: var(--muted);
+      background: var(--deep);
+      transition: all .25s;
+    }
+    .radio-pill input:checked + label {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(201,168,76,.1);
+    }
+    .radio-pill label:hover { border-color: rgba(201,168,76,.4); color: var(--cream); }
+ 
+    /* Score slider */
+    .score-wrapper {
+      position: relative;
+    }
+    .score-display {
+      position: absolute; right: 1rem; top: 50%;
+      transform: translateY(-50%);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.2rem; color: var(--gold);
+      pointer-events: none;
+    }
+    input[type="range"] {
+      width: 100%;
+      appearance: none; -webkit-appearance: none;
+      height: 2px;
+      background: rgba(201,168,76,.15);
+      border-radius: 2px;
+      outline: none;
+      padding: .85rem 0;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--gold);
+      border: none;
+      box-shadow: 0 0 12px rgba(201,168,76,.4);
+      transition: box-shadow .2s;
+    }
+    input[type="range"]:hover::-webkit-slider-thumb {
+      box-shadow: 0 0 20px rgba(201,168,76,.6);
+    }
+ 
+    /* ── Progress bar ── */
+    .progress-bar {
+      height: 2px;
+      background: var(--line);
+      position: relative; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      transition: width .5s ease;
+      width: 33%;
+    }
+ 
+    /* ── Card footer / nav ── */
+    .card-footer {
+      padding: 1.5rem 2.5rem;
+      border-top: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .btn {
+      font-family: 'Outfit', sans-serif;
+      font-size: .8rem; letter-spacing: .18em; text-transform: uppercase;
+      padding: .85rem 2.2rem; border: none; cursor: pointer;
+      transition: all .25s; border-radius: 2px;
+    }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+    .btn-gold {
+      background: var(--gold);
+      color: var(--ink);
+      font-weight: 500;
+      position: relative; overflow: hidden;
+    }
+    .btn-gold::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: var(--gold2);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform .3s;
+    }
+    .btn-gold:hover::after { transform: scaleX(1); }
+    .btn-gold span { position: relative; z-index: 1; }
+    .btn-submit {
+      background: var(--gold);
+      color: var(--ink);
+      font-weight: 500;
+      position: relative; overflow: hidden;
+    }
+ 
+    .step-counter {
+      font-size: .75rem; color: var(--muted); letter-spacing: .12em;
+    }
+ 
+    /* ── Result panel ── */
+    #result-panel {
+      display: none;
+      animation: fadeUp .8s both;
+    }
+    #result-panel.show { display: block; }
+ 
+    .result-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 3.5rem 2.5rem;
+      text-align: center;
+      animation: fadeUp .7s .1s both;
+    }
+    .result-label {
+      font-size: .72rem; letter-spacing: .28em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 2rem;
+    }
+ 
+    /* Circular gauge */
+    .gauge-wrap {
+      position: relative;
+      width: 200px; height: 200px;
+      margin: 0 auto 2rem;
+    }
+    .gauge-svg { transform: rotate(-90deg); }
+    .gauge-track {
+      fill: none;
+      stroke: rgba(201,168,76,.12);
+      stroke-width: 8;
+    }
+    .gauge-fill {
+      fill: none;
+      stroke: url(#gaugeGrad);
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 534;
+      stroke-dashoffset: 534;
+      transition: stroke-dashoffset 1.5s cubic-bezier(.22,.61,.36,1);
+    }
+    .gauge-center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      text-align: center;
+    }
+    .gauge-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3.5rem; line-height: 1;
+      color: var(--gold);
+    }
+    .gauge-unit { font-size: .75rem; color: var(--muted); letter-spacing: .12em; }
+ 
+    .result-grade {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem; font-weight: 300;
+      margin-bottom: .5rem;
+    }
+    .result-grade em { font-style: italic; color: var(--gold); }
+    .result-desc { font-size: .9rem; color: var(--muted); line-height: 1.7; max-width: 420px; margin: 0 auto 2rem; }
+ 
+    .result-bars { display: flex; flex-direction: column; gap: 1rem; text-align: left; margin-top: 2rem; }
+    .r-bar-label { display: flex; justify-content: space-between; font-size: .78rem; margin-bottom: .4rem; }
+    .r-bar-label span:first-child { color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+    .r-bar-label span:last-child { color: var(--gold); }
+    .r-bar-track { height: 2px; background: var(--line); border-radius: 2px; overflow: hidden; }
+    .r-bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold2)); border-radius: 2px; width: 0%; transition: width 1.2s ease; }
+ 
+    .result-actions { display: flex; gap: 1rem; justify-content: center; margin-top: 2.5rem; }
+    .btn-outline {
+      font-size: .78rem; letter-spacing: .16em; text-transform: uppercase;
+      padding: .8rem 2rem;
+      border: 1px solid var(--line);
+      background: transparent; color: var(--muted);
+      cursor: pointer; border-radius: 2px;
+      transition: all .25s;
+    }
+    .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+ 
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideRight {
+      from { opacity: 0; transform: translateX(24px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideLeft {
+      from { opacity: 0; transform: translateX(-24px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+ 
+    .panel-enter-right { animation: slideRight .4s ease both; }
+    .panel-enter-left  { animation: slideLeft .4s ease both; }
+ 
+    /* Select custom arrow */
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: '▾';
+      position: absolute; right: 1rem; top: 50%;
+      transform: translateY(-50%);
+      color: var(--gold); pointer-events: none; font-size: .8rem;
+    }
+ 
+    /* validation flash */
+    .field-err select, .field-err input {
+      border-color: var(--err) !important;
+      animation: shake .3s ease;
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25%      { transform: translateX(-6px); }
+      75%      { transform: translateX(6px); }
+    }
+    .err-msg { font-size: .75rem; color: var(--err); margin-top: .3rem; }
+ 
+    @media (max-width: 600px) {
+      .fields-grid { grid-template-columns: 1fr; }
+      .step-line { width: 40px; }
+    }
+  </style>
+</head>
 <body>
-    <div class="login">
-       <h1>Student Exam Performance Indicator</h1>
-   
-       <form action="{{ url_for('predict_datapoint')}}" method="post">
-        <h1>
-            <legend>Student Exam Performance Prediction</legend>
-        </h1>
-        <div class="mb-3">
-            <label class="form-label">Gender</label>
-            <select class="form-control" name="gender" placeholder="Enter you Gender" required>
-                <option class="placeholder" selected disabled value="">Select your Gender</option>
-                <option value="male">
-                    Male
-                </option>
-                <option value="female">
-                    Female
-                </option>
-            </select>
+ 
+<div class="grid-bg"></div>
+ 
+<nav>
+  <a class="logo" href="/">Score<span>Scope</span></a>
+  <a class="nav-back" href="/">← Back to Home</a>
+</nav>
+ 
+<div class="page">
+ 
+  <!-- Header -->
+  <div class="page-header">
+    <p class="page-eyebrow">Academic Performance Analysis</p>
+    <h1>Student Score<br><em>Prediction</em></h1>
+    <p>Complete the three-step form to generate an ML-powered math score prediction.</p>
+  </div>
+ 
+  <!-- Steps indicator -->
+  <div class="steps-bar">
+    <div class="step-dot active" id="sdot-1">
+      <div class="dot">1</div>
+      <div class="label">Profile</div>
+    </div>
+    <div class="step-line" id="sline-1"></div>
+    <div class="step-dot" id="sdot-2">
+      <div class="dot">2</div>
+      <div class="label">Background</div>
+    </div>
+    <div class="step-line" id="sline-2"></div>
+    <div class="step-dot" id="sdot-3">
+      <div class="dot">3</div>
+      <div class="label">Scores</div>
+    </div>
+  </div>
+ 
+  <!-- Form -->
+  <div id="form-section">
+    <form method="POST" action="/preictdata" id="pred-form">
+ 
+      <div class="form-card">
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+ 
+        <!-- STEP 1: Profile -->
+        <div class="step-panel active" id="panel-1">
+          <div class="card-top">
+            <h2>Student Profile</h2>
+            <p>Basic demographic information about the student.</p>
+          </div>
+          <div class="fields-grid">
+ 
+            <div class="field-group full">
+              <label>Gender</label>
+              <div class="radio-group">
+                <div class="radio-pill">
+                  <input type="radio" name="gender" id="g-male" value="male"/>
+                  <label for="g-male">♂ Male</label>
+                </div>
+                <div class="radio-pill">
+                  <input type="radio" name="gender" id="g-female" value="female"/>
+                  <label for="g-female">♀ Female</label>
+                </div>
+              </div>
+            </div>
+ 
+            <div class="field-group full">
+              <label>Race / Ethnicity</label>
+              <div class="select-wrap">
+                <select name="ethnicity" id="ethnicity">
+                  <option value="" disabled selected>Select group…</option>
+                  <option value="group A">Group A</option>
+                  <option value="group B">Group B</option>
+                  <option value="group C">Group C</option>
+                  <option value="group D">Group D</option>
+                  <option value="group E">Group E</option>
+                </select>
+              </div>
+            </div>
+ 
+          </div>
+          <div class="card-footer">
+            <span class="step-counter">Step 1 of 3</span>
+            <button type="button" class="btn btn-gold" onclick="goStep(2)"><span>Continue →</span></button>
+          </div>
         </div>
-        <div class="mb-3">
-            <label class="form-label">Race or Ethnicity</label>
-            <select class="form-control" name="ethnicity" placeholder="Enter you ethnicity" required>
-                <option class="placeholder" selected disabled value="">Select Ethnicity</option>
-                <option value="group A">
-                    Group A
-                </option>
-                <option value="group B">
-                    Group B
-                </option>
-                <option value="group C">
-                    Group C
-                </option>
-                <option value="group D">
-                    Group D
-                </option>
-                <option value="group E">
-                    Group E
-                </option>
-            </select>
+ 
+        <!-- STEP 2: Background -->
+        <div class="step-panel" id="panel-2">
+          <div class="card-top">
+            <h2>Academic Background</h2>
+            <p>Parental education, lunch program, and test preparation details.</p>
+          </div>
+          <div class="fields-grid">
+ 
+            <div class="field-group full">
+              <label>Parental Level of Education</label>
+              <div class="select-wrap">
+                <select name="parental_level_of_education" id="parental_edu">
+                  <option value="" disabled selected>Select education level…</option>
+                  <option value="some high school">Some High School</option>
+                  <option value="high school">High School</option>
+                  <option value="some college">Some College</option>
+                  <option value="associate's degree">Associate's Degree</option>
+                  <option value="bachelor's degree">Bachelor's Degree</option>
+                  <option value="master's degree">Master's Degree</option>
+                </select>
+              </div>
+            </div>
+ 
+            <div class="field-group">
+              <label>Lunch Type</label>
+              <div class="radio-group" style="flex-direction:column; gap:.5rem;">
+                <div class="radio-pill">
+                  <input type="radio" name="lunch" id="l-standard" value="standard"/>
+                  <label for="l-standard">Standard</label>
+                </div>
+                <div class="radio-pill">
+                  <input type="radio" name="lunch" id="l-free" value="free/reduced"/>
+                  <label for="l-free">Free / Reduced</label>
+                </div>
+              </div>
+            </div>
+ 
+            <div class="field-group">
+              <label>Test Preparation Course</label>
+              <div class="radio-group" style="flex-direction:column; gap:.5rem;">
+                <div class="radio-pill">
+                  <input type="radio" name="test_preparation_course" id="tp-none" value="none"/>
+                  <label for="tp-none">None</label>
+                </div>
+                <div class="radio-pill">
+                  <input type="radio" name="test_preparation_course" id="tp-done" value="completed"/>
+                  <label for="tp-done">Completed</label>
+                </div>
+              </div>
+            </div>
+ 
+          </div>
+          <div class="card-footer">
+            <button type="button" class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+            <span class="step-counter">Step 2 of 3</span>
+            <button type="button" class="btn btn-gold" onclick="goStep(3)"><span>Continue →</span></button>
+          </div>
         </div>
-        <div class="mb-3">
-            <label class="form-label">Parental Level of Education</label>
-            <select class="form-control" name="parental_level_of_education"
-                placeholder="Enter you Parent Education" required>
-                <option class="placeholder" selected disabled value="">Select Parent Education</option>
-                <option value="associate's degree">
-                    associate's degree
-                </option>
-                <option value="bachelor's degree">
-                    bachelor's degree
-                </option>
-                <option value="high school">
-                    high school
-                </option>
-                <option value="master's degree">
-                    master's degree
-                </option>
-                <option value="some college">
-                    some college
-                </option>
-                <option value="some high school">
-                    some high school
-                </option>
-            </select>
+ 
+        <!-- STEP 3: Scores -->
+        <div class="step-panel" id="panel-3">
+          <div class="card-top">
+            <h2>Academic Scores</h2>
+            <p>Enter the student's reading and writing scores (0–100).</p>
+          </div>
+          <div class="fields-grid">
+ 
+            <div class="field-group">
+              <label>Reading Score</label>
+              <div class="score-wrapper">
+                <input type="range" min="0" max="100" value="50" name="reading_score" id="reading_range"/>
+                <span class="score-display" id="reading_val">50</span>
+              </div>
+              <input type="hidden" name="reading_score" id="reading_hidden" value="50"/>
+            </div>
+ 
+            <div class="field-group">
+              <label>Writing Score</label>
+              <div class="score-wrapper">
+                <input type="range" min="0" max="100" value="50" name="writing_score" id="writing_range"/>
+                <span class="score-display" id="writing_val">50</span>
+              </div>
+              <input type="hidden" name="writing_score" id="writing_hidden" value="50"/>
+            </div>
+ 
+            <div class="field-group full" style="margin-top:.5rem;">
+              <div style="display:flex; gap:1.5rem; padding:1.5rem; background:var(--deep); border:1px solid var(--line);">
+                <div style="flex:1; text-align:center;">
+                  <div style="font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;">Reading</div>
+                  <div style="font-family:'Cormorant Garamond',serif;font-size:2.4rem;color:var(--gold);" id="read_big">50</div>
+                </div>
+                <div style="width:1px;background:var(--line);"></div>
+                <div style="flex:1; text-align:center;">
+                  <div style="font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;">Writing</div>
+                  <div style="font-family:'Cormorant Garamond',serif;font-size:2.4rem;color:var(--gold);" id="write_big">50</div>
+                </div>
+                <div style="width:1px;background:var(--line);"></div>
+                <div style="flex:1; text-align:center;">
+                  <div style="font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;">Average</div>
+                  <div style="font-family:'Cormorant Garamond',serif;font-size:2.4rem;color:var(--cream);" id="avg_big">50</div>
+                </div>
+              </div>
+            </div>
+ 
+          </div>
+          <div class="card-footer">
+            <button type="button" class="btn btn-ghost" onclick="goStep(2)">← Back</button>
+            <span class="step-counter">Step 3 of 3</span>
+            <button type="submit" class="btn btn-gold btn-submit"><span>⟳ Predict Score</span></button>
+          </div>
         </div>
-        <div class="mb-3">
-            <label class="form-label">Lunch Type</label>
-            <select class="form-control" name="lunch" placeholder="Enter you Lunch" required>
-                <option class="placeholder" selected disabled value="">Select Lunch Type</option>
-                <option value="free/reduced">
-                    free/reduced
-                </option>
-                <option value="standard">
-                    standard
-                </option>
-            </select>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Test preparation Course</label>
-            <select class="form-control" name="test_preparation_course" placeholder="Enter you Course"
-                required>
-                <option class="placeholder" selected disabled value="">Select Test_course</option>
-                <option value="none">
-                    None
-                </option>
-                <option value="completed">
-                    Completed
-                </option>
-            </select>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Writing Score out of 100</label>
-            <input class="form-control" type="number" name="reading_score"
-                placeholder="Enter your Reading score" min='0' max='100' />
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Reading Score out of 100</label>
-            <input class="form-control" type="number" name="writing_score"
-                placeholder="Enter your Reading Score" min='0' max='100' />
-        </div>
-        <div class="mb-3">
-            <input class="btn btn-primary" type="submit" value="Predict your Maths Score" required />
-        </div>
+ 
+      </div><!-- .form-card -->
     </form>
-    <h2>
-       THE  prediction is {{results}}
-    </h2>
-   <body>
+  </div>
+ 
+  <!-- ── Result Panel ── -->
+  {% if results is defined and results != None %}
+  <div id="result-panel" class="show">
+    <div class="result-card">
+      <p class="result-label">Predicted Math Score</p>
+ 
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" width="200" height="200" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#c9a84c"/>
+              <stop offset="100%" style="stop-color:#e8c76a"/>
+            </linearGradient>
+          </defs>
+          <circle class="gauge-track" cx="100" cy="100" r="85"/>
+          <circle class="gauge-fill" id="gauge-fill" cx="100" cy="100" r="85"/>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-num" id="gauge-number">0</div>
+          <div class="gauge-unit">/ 100</div>
+        </div>
+      </div>
+ 
+      <div class="result-grade" id="result-grade-text">
+        <em>Calculating…</em>
+      </div>
+      <p class="result-desc" id="result-desc-text">
+        Analysing prediction…
+      </p>
+ 
+      <div class="result-bars">
+        <div>
+          <div class="r-bar-label"><span>Math (Predicted)</span><span id="bar-math-val">—</span></div>
+          <div class="r-bar-track"><div class="r-bar-fill" id="bar-math"></div></div>
+        </div>
+      </div>
+ 
+      <div class="result-actions">
+        <button class="btn-outline" onclick="window.location='/preictdata'">↺ New Prediction</button>
+        <button class="btn-outline" onclick="window.location='/'">⌂ Home</button>
+      </div>
+    </div>
+  </div>
+ 
+  <script>
+    const RAW_SCORE = {{ results }};
+    const score = Math.round(Math.min(100, Math.max(0, RAW_SCORE)));
+ 
+    // Grade labels
+    function getGrade(s) {
+      if (s >= 90) return { grade: 'Outstanding', em: 'A+', desc: 'The model predicts an exceptional performance. This student demonstrates strong academic foundations across all measured dimensions.' };
+      if (s >= 80) return { grade: 'Excellent',    em: 'A',  desc: 'A strong prediction indicating above-average performance. The student is well-prepared and shows consistent academic engagement.' };
+      if (s >= 70) return { grade: 'Proficient',   em: 'B',  desc: 'The model predicts solid performance. Minor improvements in study habits or test preparation could push scores higher.' };
+      if (s >= 60) return { grade: 'Developing',   em: 'C',  desc: 'An average prediction. Focused preparation and additional academic support could significantly improve outcomes.' };
+      if (s >= 50) return { grade: 'Needs Support',em: 'D',  desc: 'The prediction suggests academic challenges. Early intervention and structured support are recommended.' };
+      return         { grade: 'Critical',          em: 'F',  desc: 'The model predicts significant academic difficulty. Immediate and comprehensive academic support is advised.' };
+    }
+ 
+    window.addEventListener('DOMContentLoaded', () => {
+      const { grade, em, desc } = getGrade(score);
+      document.getElementById('result-grade-text').innerHTML = `<em>${grade}</em> — Grade ${em}`;
+      document.getElementById('result-desc-text').textContent = desc;
+      document.getElementById('bar-math-val').textContent = score;
+ 
+      // Animate number
+      let cur = 0;
+      const step = score / 60;
+      const interval = setInterval(() => {
+        cur = Math.min(cur + step, score);
+        document.getElementById('gauge-number').textContent = Math.round(cur);
+        if (cur >= score) clearInterval(interval);
+      }, 16);
+ 
+      // Animate gauge arc (circumference = 2π * 85 ≈ 534)
+      setTimeout(() => {
+        const circ = 534;
+        const offset = circ - (score / 100) * circ;
+        document.getElementById('gauge-fill').style.strokeDashoffset = offset;
+        document.getElementById('bar-math').style.width = score + '%';
+      }, 200);
+ 
+      // Scroll to result
+      document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  </script>
+  {% endif %}
+ 
+</div><!-- .page -->
+ 
+<script>
+  let currentStep = 1;
+  const TOTAL = 3;
+  const progressPcts = { 1: '33%', 2: '66%', 3: '100%' };
+ 
+  function validateStep(step) {
+    let ok = true;
+    if (step === 1) {
+      const gChecked = document.querySelector('input[name="gender"]:checked');
+      const eth = document.getElementById('ethnicity').value;
+      if (!gChecked) {
+        document.querySelector('.radio-group').classList.add('field-err');
+        ok = false;
+      }
+      if (!eth) {
+        const wrap = document.getElementById('ethnicity').parentElement.parentElement;
+        wrap.classList.add('field-err');
+        ok = false;
+      }
+    }
+    if (step === 2) {
+      if (!document.querySelector('input[name="lunch"]:checked')) ok = false;
+      if (!document.querySelector('input[name="test_preparation_course"]:checked')) ok = false;
+      if (!document.getElementById('parental_edu').value) ok = false;
+    }
+    return ok;
+  }
+ 
+  function goStep(next) {
+    if (next > currentStep && !validateStep(currentStep)) {
+      // highlight empties briefly
+      setTimeout(() => document.querySelectorAll('.field-err').forEach(el => el.classList.remove('field-err')), 1200);
+      return;
+    }
+    const dir = next > currentStep ? 'right' : 'left';
+    document.getElementById('panel-' + currentStep).classList.remove('active');
+    document.getElementById('panel-' + next).classList.add('active', dir === 'right' ? 'panel-enter-right' : 'panel-enter-left');
+ 
+    // Update step dots
+    const prevDot = document.getElementById('sdot-' + currentStep);
+    const nextDot = document.getElementById('sdot-' + next);
+    prevDot.classList.remove('active');
+    if (next > currentStep) prevDot.classList.add('done');
+    else prevDot.classList.remove('done');
+    nextDot.classList.add('active');
+    nextDot.classList.remove('done');
+ 
+    // Update lines
+    if (currentStep < TOTAL && next > currentStep) {
+      document.getElementById('sline-' + currentStep)?.classList.add('done');
+    } else if (next < currentStep) {
+      document.getElementById('sline-' + next)?.classList.remove('done');
+    }
+ 
+    // Progress bar
+    document.getElementById('progress').style.width = progressPcts[next];
+ 
+    currentStep = next;
+  }
+ 
+  // Range sliders
+  function bindRange(rangeId, valId, bigId, hiddenId, otherId, avgId) {
+    const range = document.getElementById(rangeId);
+    const val   = document.getElementById(valId);
+    const big   = document.getElementById(bigId);
+    const hidden = document.getElementById(hiddenId);
+    const other = document.getElementById(otherId);
+    const avg   = document.getElementById(avgId);
+ 
+    function update() {
+      val.textContent    = range.value;
+      big.textContent    = range.value;
+      hidden.value       = range.value;
+      avg.textContent    = Math.round((+range.value + +other.value) / 2);
+    }
+    range.addEventListener('input', update);
+    update();
+  }
+ 
+  bindRange('reading_range', 'reading_val', 'read_big',  'reading_hidden',  'writing_range', 'avg_big');
+  bindRange('writing_range', 'writing_val', 'write_big', 'writing_hidden',  'reading_range', 'avg_big');
+ 
+  // Recompute avg when either changes
+  ['reading_range','writing_range'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      const r = +document.getElementById('reading_range').value;
+      const w = +document.getElementById('writing_range').value;
+      document.getElementById('avg_big').textContent = Math.round((r + w) / 2);
+    });
+  });
+</script>
+</body>
 </html>
